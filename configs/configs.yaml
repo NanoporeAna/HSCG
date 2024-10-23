@@ -1,0 +1,69 @@
+trainer_config:
+  epoches: 600
+  batch_size: 128
+  lr: 0.0001
+  weight_decay: 0.0005
+  pre_model_path: models/HSCGaddHbest/600all.pt
+  save_path: "models/HSCGaddJeol/"
+  save_logs_name: logs/HSCGaddJeol
+  logits_scale: 4.5
+  use_cuda: 0
+
+dataset_config:
+  smiles_type: smiles_2D                  #smiles的数据类型（类型其实就是json数据库中存储的字段，下同）
+  hsqc_type: ExactHSQC                 #hsqc的数据类型
+  tags_type: tags                      #多重性的类型
+  ID_type: np_ID                          #分子的ID值
+  JeolID_type: np_ID
+  wt_type: weight                  #质量约束的类型
+  data_enhancement_type : smiles_list  #smiles的数据增强存储，只在新的数据存储方式中有
+  data_reat: 0.8                       #数据划分比例
+  have_tags: False                      # Ture or False , 是否使用tags
+  data_enhancement: False              # Ture or False ,是否进行数据增强
+  load_data_type: old                  # 数据加载的方式，new or old, 新的数据加载对数据增强做了处理
+  data_path: /horovod/examples/HSQC/HSQCCODE/HSCG2.0/data/jeol_clean_base_2Dsmiles_split1.json   # jeol_new_data1.json #HSQC_shuffle_tags_rdkit.json
+
+jeol_config:
+  jeol: Ture
+  smiles_type: smiles                  #smiles的数据类型（类型其实就是json数据库中存储的字段，下同）
+  hsqc_type: ExactHSQC                 #hsqc的数据类型
+  tags_type: tags                      #多重性的类型
+  ID_type: coconut_id                          #分子的ID值
+  wt_type: exactMolWt                  #质量约束的类型
+  data_enhancement_type : smiles_list  #smiles的数据增强存储，只在新的数据存储方式中有
+  data_reat: 0.8                       #数据划分比例
+  have_tags: False                      # Ture or False , 是否使用tags
+  data_enhancement: False              # Ture or False ,是否进行数据增强
+  load_data_type: old                  # 数据加载的方式，new or old, 新的数据加载对数据增强做了处理
+  data_path: /horovod/examples/HSQC/HSQCCODE/HSCG2.0/data/jeol_clean_base_2Dsmiles_split1.json    # jeol_new_data1.json #HSQC_shuffle_tags_rdkit.json
+
+GCN_model: 
+  num_layer: 6                       # number of graph conv layers
+  emb_dim: 300                          # embedding dimension in graph conv layers
+  feat_chang_dim: 512                   #中间变化神经元个数
+  feat_dim: 256                        # output feature dimention
+  drop_ratio: 0                        # dropout ratio
+  pool: mean                            # readout pooling (i.e., mean/max/add)
+  gnn_type: gin                        #gnn网络的类型，包含gin与gcn、gat、graphsage
+  JK: last
+  pre_model: ./models/pre_model/supervised.pth
+  version: version1
+
+val_config:
+  val_file: /horovod/examples/HSQC/HSQCCODE/HSQCAI/data/COCONUT.json #dis_max.json   coco_new_little.json
+  jeol_file: ["/horovod/examples/HSQC/HSQCCODE/HSQCAI/data/coconut_jeol_co_cas_train.json",
+  "/horovod/examples/HSQC/HSQCCODE/HSQCAI/data/coconut_jeol_co_cas_val.json"] # jeol实验数据
+  pre_model: models/finetuningPlan2/finetuning175all.pt
+  save_logs_name: logs/FinetuningJeolClean.log
+  device: cuda:0
+  data_reat: 0
+  result_save_name: logs/FinetuningJeolClean
+  batch_size: 128
+  is_wt: False  #False or Ture , add the molecule weight
+  is_m: False
+  da: 50
+
+model_config:
+  smiles_encode_type: GNN
+  output_channels: 256
+  squeezenet_version: 1.6  # 1.0是base； 1.1 是删除最后一个fire； 1.2 最开始增加卷积; 1.3 最后加fire; 1.4最开始增加卷积和最后加fire
