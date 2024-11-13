@@ -1,9 +1,12 @@
 # HSCG
-HSCG
+HSQCid: A Powerful Tool for Paving the Way to High-throughput Structural Dereplication of Natural Products Based on Fast NMR Experiments
+
 ![image/img.png](image/img.png)
 # Data
 The dataset is available at: BaiduYun (链接: https://pan.baidu.com/s/1YzDlfk_C-1zEefYz-EGSmA?pwd=ummg 提取码: ummg)
+
 The Model is available at: BaiduYun (链接: https://pan.baidu.com/s/1u6kjXqVh13qoLiHleNrnqA?pwd=kgy5 提取码: kgy5)
+
 This dataset contains about 398949 compounds of Coconut, we predict the NMR shift of 13C and 1H at ACD Lab.
 
 # Requirements
