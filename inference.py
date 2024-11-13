@@ -3,13 +3,11 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from torch.utils.tensorboard import SummaryWriter
-#from torch.utils.data import DataLoader
 import torch
 from tqdm import tqdm
 from model.model_build import HSCG
-#from util.data import smiles_str_encode, load_data, smiles_cnmr_dataset, init_logger, eval_smiles_cnmr_dataset
 import yaml, os, sys
-from util.mongodb_data import init_logger, evel_smiles_cnmr_dataset_new, zero_smiles_G
+from util.mongodb_data import evel_smiles_cnmr_dataset_new, zero_smiles_G
 from torch_geometric.data import DataLoader
 from collections import Counter
 import pymongo
@@ -138,30 +136,6 @@ def get_topK_result_new(nmr_feature, ID, smiles_feature, topK, device):
             print('error')
     #返回结果
     return res_ID, scores[0]
-
-def change_data(datas, data_enhancement):
-    """
-
-    @param datas:
-    @param data_enhancement:
-    @return:
-    """
-    data_smiles = {} #key:smiles, value:id
-    id_smiles_lists = {} # key:id, value:all smiles lists
-    for data in datas:
-        id = data["ID"]
-        data_smiles[data["smiles"]] = id
-        if data_enhancement:
-            all_smiles_list = []
-            all_smiles_list.append(data["smiles"])
-            for smiles in data["smiles_list"]:
-                all_smiles_list.append(smiles)
-                data_smiles[smiles] = id
-            id_smiles_lists[id] = all_smiles_list
-        else:
-            id_smiles_lists[id] = data["smiles"]
-    return data_smiles, id_smiles_lists
-
 
 def find_fit_wt(f_ms, temp_cur, da):
     '''
@@ -332,25 +306,6 @@ def detection(val_dataloader, model, is_wt, is_m, is_no_activateH,  temp_cur, re
         elif is_wt and is_m and (not is_no_activateH):
             IDs, new_smiles_features = find_fit_wt_mm(f_ms=wt, da=da, mms=mm, temp_cur=temp_cur)
 
-
-            # IDs_wt, smiles_features_wt = find_fit_wt(f_ms=wt, temp_cur=temp_cur, da=da)
-            # IDs_mm, smiles_features_mm = find_fit_mm(mms=mm, temp_cur=temp_cur)
-            # #取交集
-            # # IDs = [ID for ID in IDs_wt if ID in IDs_mm]
-            # # smiles_features = [smile for smile in smiles_features_wt if smile in smiles_features_mm]
-            # IDs = []
-            # new_smiles_features = []
-            # for i in range(len(IDs_wt)):
-            #     for j in range(len(IDs_mm)):
-            #         if IDs_wt[i] == IDs_mm[j]:
-            #             IDs.append(IDs_wt[i])
-            #             new_smiles_features.append(smiles_features_wt[i])
-            #             break
-            # if new_smiles_features == []:
-            #     # 这里假设两个交集没有（理论上有），实验存在误差，质量测量查过误差范围
-            #     IDs = IDs_wt
-            #     new_smiles_features = smiles_features_wt
-
         #进行对比和统计
         for i in range(len(wt)):
             if (not is_wt) and (not is_m) and (not is_no_activateH):
@@ -424,27 +379,6 @@ def detection(val_dataloader, model, is_wt, is_m, is_no_activateH,  temp_cur, re
                 top5_num += 1
             if num10 > 0:
                 top10_num += 1
-            results.append(result)
-
-            # 结果算好了，进行一个写入数据库操作
-            write_in_model_result_db_data = {
-                'dataset_ID': dataset_ID,
-                'splitFlag': split_flag,
-                'algorithm_version': 'v2.0.0',
-                "compound_ID": now_id,
-                'rank': positive_position,
-                'scores': scores,
-                'wt': is_wt,
-                'multiple': is_m,
-                'non_activateH': is_no_activateH,
-                'predictIDs': res_ID,
-                "createBy": "张晨",
-                "createAt": "2024-04-19",
-                "updateAt": "2024-04-19",
-                "updateBy": "张晨",
-                "similarity": [1]
-            }
-            # result_cur.insert_one(write_in_model_result_db_data)
             len_val_data += 1
 
     top1 = top1_num / len_val_data
@@ -509,21 +443,13 @@ def get_test_data(ref_tabel, select='JeolA', chemicalClass=''):
         chinese_test = ref[ref['chemicalClass'].isin(chemicalClass)]
         df = chinese_test.loc[:, ['smiles', 'tags_triple', 'ExactMass', 'Ref_ID', 'ExactHSQC', 'np_ID', 'non_active_h_count']]
     df.columns = ['smiles', 'tags_triple', 'molecular_weight', 'ID', 'ExactHSQC', 'source_ID', 'non_active_h_count']
-    # chinese_test = jeol_data[jeol_data['chemicalClass'].isin(subclass)]
-    # coco_data = coco_data[coco_data['split_flag']=='val']
-    # jeol_data = jeol_data.loc[:, ['smiles_2D', 'tags_triple', 'molecular_weight','Ref_ID', 'ExactHSQC', 'np_ID']]
-    # coconut_data = coco_data.loc[:, ['smiles', 'tags_triple', 'molecular_weight','Ref_ID', 'ExactHSQC', 'coconut_id']]
-    # jeol_data.columns = ['smiles', 'tags_triple', 'molecular_weight','Ref_ID', 'ExactHSQC', 'source_ID']
-    # coconut_data.columns = ['smiles', 'tags_triple', 'molecular_weight','Ref_ID', 'ExactHSQC', 'source_ID']
-    # nature_test = {'coconut': coconut_data, 'jeol': jeol_data}
-    # return chinese_test, nature_test
     return df
 
 if __name__ == "__main__":
     import time
     start_time = time.time()
     #加载配置文件
-    config_path = "./configs/config.yaml"
+    config_path = "./configs/configs.yaml"
     with open(os.path.join(config_path), 'r') as file:
         config_yaml = yaml.load(file.read(), Loader=yaml.CLoader)
     device = config_yaml["val_config"]['device'] if torch.cuda.is_available() else 'cpu'
@@ -545,7 +471,7 @@ if __name__ == "__main__":
 
     writer = SummaryWriter('./' + os.path.join(save_log_name))
 
-    # 加载临时表数据
+    # 加载自己数据库
     mongoclient = pymongo.MongoClient('mongodb://172.10.10.8:27017', username='root', password='123456')
     db = mongoclient['HSQC_Clean']
     basic_compound = db.Base_Compound_Clean
@@ -588,7 +514,6 @@ if __name__ == "__main__":
     # 构建参考库数据
     data_pd = ref.copy()
     all_ID = ref['ID'].values
-    data_pd['model_ID'] = [4 for _ in range(len(data_pd))]
     data_pd['create_time'] = [str(datetime.now()) for _ in range(len(data_pd))]
     print("加载数据完成,数据库长度：", len(data_pd))
     load_data_time = time.time()
@@ -598,147 +523,137 @@ if __name__ == "__main__":
     smiles_dataset = zero_smiles_G(ss, smiles_version='version1')
     smiles_dataloader = DataLoader(dataset=smiles_dataset, batch_size=batch_size, num_workers=2)
 
-    for epoch in range(600, epochs + 1, 10):
-        torch.cuda.empty_cache()
-        # 加载模型
-        model = HSCG(config_yaml)
-        model_path = config_yaml["val_config"]["pre_model"]
-        checkpoint = torch.load(model_path, map_location=torch.device(device))
-        model.load_state_dict(checkpoint['model'])
-        model.eval()
-        model.to(device)
+    torch.cuda.empty_cache()
+    # 加载模型
+    model = HSCG(config_yaml)
+    model_path = config_yaml["val_config"]["pre_model"]
+    checkpoint = torch.load(model_path, map_location=torch.device(device))
+    model.load_state_dict(checkpoint['model'])
+    model.eval()
+    model.to(device)
+    load_model_time = time.time()
+    print("加载模型使用的时间：", load_model_time-start_time)
+    all_smiles_features = zero_shot_classifier(model=model, allsmiles=smiles_dataloader, device=device)
+    print("The smiles library shape: ", all_smiles_features.shape)
+    load_smiles_feater_time = time.time()
+    print("编译smile分子库使用的时间：", load_smiles_feater_time - load_data_time)
+    all_smiles_features_ = all_smiles_features.detach().cpu().numpy()
+    all_smiles_features_ = all_smiles_features_.tolist()
 
-        # 遍历打印模型参数详细信息
-        # for name, param in model.named_parameters():
-        #     print(f"Parameter Name: {name}")
-        #     print(f"Shape: {param.shape}")
-        #     print(f"Data Type: {param.dtype}")
-        #     # print(f"Values (first 5 elements): {param.data}")  # 可选，打印前5个元素作为示例
-        #     print("---------")
-        load_model_time = time.time()
+    print('开始写入temp数据库...')
+    data_pd['smiles_feature'] = all_smiles_features_
+    data_pd['HSQC_feature'] = [None for _ in range(len(data_pd))]
+    temp_cur.delete_many({})
+    # result_cur.delete_many({})
+    temp_cur.insert_many(data_pd.to_dict(orient='records'))
 
-        print("加载模型使用的时间：", load_model_time-start_time)
-        all_smiles_features = zero_shot_classifier(model=model, allsmiles=smiles_dataloader, device=device)
-        print("The smiles library shape: ", all_smiles_features.shape)
-        load_smiles_feater_time = time.time()
-        print("编译smile分子库使用的时间：", load_smiles_feater_time - load_data_time)
-        all_smiles_features_ = all_smiles_features.detach().cpu().numpy()
-        all_smiles_features_ = all_smiles_features_.tolist()
+    # 创建索引
+    temp_cur.create_index('ID')
+    temp_cur.create_index('molecular_weight')
+    temp_cur.create_index('tags_triple')
+    temp_cur.create_index('non_active_h_count')
+    # temp_cur.ensure_index([('molecular_weight', 1), ('tags_triple', 1)])
+    store_data_time = time.time()
+    print("创建数据库，存入数据使用的时间：", store_data_time - load_smiles_feater_time)
+    print("开始检测")
+    # init_logger("result_with_mm_wt.log", f'特别说明：修改质量约束，这次采用rdkit计算的精准质量作为约束条件，而不是上面实际实验测量的质量')
+    # —————————————————————————————————
+    # 处理Jeol C数据
+    # JeolCtop1, JeolCtop5, JeolCtop10 = detection(JeolC_dataloader, model, False, False, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx05', 'JeolC')
+    # print("未加约束 JeolC:", JeolCtop1, JeolCtop5, JeolCtop10)
 
-        print('开始写入temp数据库...')
-        data_pd['smiles_feature'] = all_smiles_features_
-        data_pd['HSQC_feature'] = [None for _ in range(len(data_pd))]
-        temp_cur.delete_many({})
-        # result_cur.delete_many({})
-        temp_cur.insert_many(data_pd.to_dict(orient='records'))
-    
-        # 创建索引
-        temp_cur.create_index('ID')
-        temp_cur.create_index('molecular_weight')
-        temp_cur.create_index('tags_triple')
-        temp_cur.create_index('non_active_h_count')
-        # temp_cur.ensure_index([('molecular_weight', 1), ('tags_triple', 1)])
-        store_data_time = time.time()
-        print("创建数据库，存入数据使用的时间：", store_data_time - load_smiles_feater_time)
-        print("开始检测")
-        # init_logger("result_with_mm_wt.log", f'特别说明：修改质量约束，这次采用rdkit计算的精准质量作为约束条件，而不是上面实际实验测量的质量')
-        # —————————————————————————————————
-        # 处理Jeol C数据
-        # JeolCtop1, JeolCtop5, JeolCtop10 = detection(JeolC_dataloader, model, False, False, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx05', 'JeolC')
-        # print("未加约束 JeolC:", JeolCtop1, JeolCtop5, JeolCtop10)
+    # init_logger("result_with_mm_wt.log", f'未加约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
+    # 处理JeolB数据
+    JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, False, False, False, temp_cur, result_cur,
+                                                 da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
+    print("未加约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
+    # init_logger("result_with_mm_wt.log", f'未加约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
+    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
+    # print("非活泼H JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
+    # init_logger("result_with_mm_wt.log", f'非活泼H JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
+    #
+    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, True, is_m, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
+    # print("质量约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
+    # init_logger("result_with_mm_wt.log", f'质量约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
+    #
+    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, False, True, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
+    # print("多重性约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
+    # init_logger("result_with_mm_wt.log", f'多重性约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
+    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, True, True, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
+    # print("质量+多重性约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
+    # init_logger("result_with_mm_wt.log", f'质量+多重性约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
+    # —————————————————————————————————
+    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(chinese_dataloader, model, False, False, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'Jeol')
+    # print("未加约束 中药测试数据结果:", JeolAtop1, JeolAtop5, JeolAtop10)
 
-        # init_logger("result_with_mm_wt.log", f'未加约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-        # 处理JeolB数据
-        JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, False, False, False, temp_cur, result_cur,
-                                                     da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-        print("未加约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-        # init_logger("result_with_mm_wt.log", f'未加约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-        # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-        # print("非活泼H JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-        # init_logger("result_with_mm_wt.log", f'非活泼H JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-        #
-        # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, True, is_m, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-        # print("质量约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-        # init_logger("result_with_mm_wt.log", f'质量约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-        #
-        # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, False, True, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-        # print("多重性约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-        # init_logger("result_with_mm_wt.log", f'多重性约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-        # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, True, True, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-        # print("质量+多重性约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-        # init_logger("result_with_mm_wt.log", f'质量+多重性约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-        # —————————————————————————————————
-        # JeolAtop1, JeolAtop5, JeolAtop10 = detection(chinese_dataloader, model, False, False, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx03', 'Jeol')
-        # print("未加约束 中药测试数据结果:", JeolAtop1, JeolAtop5, JeolAtop10)
+    JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, False, False, False, temp_cur, result_cur,
+                                                 da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
+    print("未加约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
+    # init_logger("result_with_mm_wt.log", f'未加约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
+    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
+    # print("非活泼H JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
+    # init_logger("result_with_mm_wt.log", f'非活泼H JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
+    #
+    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, True, is_m, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
+    # print("质量约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
+    # init_logger("result_with_mm_wt.log", f'质量约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
+    #
+    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, False, True, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
+    # print("多重性约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
+    # init_logger("result_with_mm_wt.log", f'多重性约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
+    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, True, True, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
+    # print("质量+多重性约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
+    # init_logger("result_with_mm_wt.log", f'质量+多重性约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
+    # —————————————————————————————————
+    # 处理COCONUT验证集
+    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
+    # print("非活泼H CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
+    # init_logger("result_with_mm_wt.log", f'非活泼H CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
+    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, False, is_m, False, temp_cur,
+    #                                                       result_cur,
+    #                                                       da, device, all_smiles_features, all_ID, 'xx02',
+    #                                                       'CoconutB')
+    # print("未加约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
+    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, True, is_m, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
+    # print("质量约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
+    # init_logger("result_with_mm_wt.log", f'质量约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
+    #
+    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, False, True, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
+    # print("多重性约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
+    # init_logger("result_with_mm_wt.log", f'多重性约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
+    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, True, True, False, temp_cur, result_cur,
+    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
+    # print("质量+多重性约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
+    # init_logger("result_with_mm_wt.log", f'质量+多重性约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
 
-        JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, False, False, False, temp_cur, result_cur,
-                                                     da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-        print("未加约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-        # init_logger("result_with_mm_wt.log", f'未加约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-        # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-        # print("非活泼H JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-        # init_logger("result_with_mm_wt.log", f'非活泼H JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-        #
-        # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, True, is_m, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-        # print("质量约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-        # init_logger("result_with_mm_wt.log", f'质量约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-        #
-        # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, False, True, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-        # print("多重性约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-        # init_logger("result_with_mm_wt.log", f'多重性约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-        # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, True, True, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-        # print("质量+多重性约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-        # init_logger("result_with_mm_wt.log", f'质量+多重性约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-        # —————————————————————————————————
-        # 处理COCONUT验证集
-        # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-        # print("非活泼H CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-        # init_logger("result_with_mm_wt.log", f'非活泼H CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
-        # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, False, is_m, False, temp_cur,
-        #                                                       result_cur,
-        #                                                       da, device, all_smiles_features, all_ID, 'xx02',
-        #                                                       'CoconutB')
-        # print("未加约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-        # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, True, is_m, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-        # print("质量约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-        # init_logger("result_with_mm_wt.log", f'质量约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
-        #
-        # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, False, True, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-        # print("多重性约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-        # init_logger("result_with_mm_wt.log", f'多重性约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
-        # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, True, True, False, temp_cur, result_cur,
-        #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-        # print("质量+多重性约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-        # init_logger("result_with_mm_wt.log", f'质量+多重性约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
+    detection_time = time.time()
+    print("开始推理使用的时间：", detection_time-store_data_time)
+    # local_epoch = checkpoint['epoch']
+    # writer.add_scalars('Jeol/Top1', {'JeolA': JeolAtop1, 'JeolB': JeolBtop1, 'JeolC': JeolCtop1}, epoch)
+    # writer.add_scalars('Jeol/Top5', {'JeolA': JeolAtop5, 'JeolB': JeolBtop5, 'JeolC': JeolCtop5}, epoch)
+    # writer.add_scalars('Jeol/Top10', {'JeolA': JeolAtop10, 'JeolB': JeolBtop10, 'JeolC': JeolCtop10}, epoch)
 
-        detection_time = time.time()
-        print("开始推理使用的时间：", detection_time-store_data_time)
-        # local_epoch = checkpoint['epoch']
-        # writer.add_scalars('Jeol/Top1', {'JeolA': JeolAtop1, 'JeolB': JeolBtop1, 'JeolC': JeolCtop1}, epoch)
-        # writer.add_scalars('Jeol/Top5', {'JeolA': JeolAtop5, 'JeolB': JeolBtop5, 'JeolC': JeolCtop5}, epoch)
-        # writer.add_scalars('Jeol/Top10', {'JeolA': JeolAtop10, 'JeolB': JeolBtop10, 'JeolC': JeolCtop10}, epoch)
-
-        # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, is_wt, is_m, temp_cur,
-        #                                                       result_cur, da,
-        #                                                       device,
-        #                                                       all_smiles_features, all_ID, 'xx06', 'CoconutA')
-        # writer.add_scalars('CoconutB', {'top1': CoconutBtop1, 'top5': CoconutBtop5, 'top10': CoconutBtop10}, epoch)
-        # print(CoconutBtop1, CoconutBtop5, CoconutBtop10)
-        end_time = time.time()
-        print("使用的总时间：", end_time-start_time)
+    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, is_wt, is_m, temp_cur,
+    #                                                       result_cur, da,
+    #                                                       device,
+    #                                                       all_smiles_features, all_ID, 'xx06', 'CoconutA')
+    # writer.add_scalars('CoconutB', {'top1': CoconutBtop1, 'top5': CoconutBtop5, 'top10': CoconutBtop10}, epoch)
+    # print(CoconutBtop1, CoconutBtop5, CoconutBtop10)
+    end_time = time.time()
+    print("使用的总时间：", end_time-start_time)
     mongoclient.close()
     
 
