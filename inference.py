@@ -468,11 +468,14 @@ if __name__ == "__main__":
     data_reat = config_yaml["val_config"]['data_reat']
     save_log_name = config_yaml["val_config"]['save_logs_name']
     da = config_yaml["val_config"]["da"]
+    MongoDB_IP = config_yaml["val_config"]['MongoDB_IP']
+    MongoDB_USER = config_yaml["val_config"]['MongoDB_USER']
+    MongoDB_PASSWORD = config_yaml["val_config"]['MongoDB_PASSWORD']
 
     writer = SummaryWriter('./' + os.path.join(save_log_name))
 
     # 加载自己数据库
-    mongoclient = pymongo.MongoClient('mongodb://172.10.10.8:27017', username='root', password='123456')
+    mongoclient = pymongo.MongoClient(MongoDB_IP, username=MongoDB_USER, password=MongoDB_PASSWORD)
     db = mongoclient['HSQC_Clean']
     basic_compound = db.Base_Compound_Clean
     coco_table = db.Coconut_Compound_Clean

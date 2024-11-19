@@ -23,20 +23,6 @@ dataset_config:
   load_data_type: old                  # 数据加载的方式，new or old, 新的数据加载对数据增强做了处理
   data_path: /horovod/examples/HSQC/HSQCCODE/HSCG2.0/data/jeol_clean_base_2Dsmiles_split1.json   # jeol_new_data1.json #HSQC_shuffle_tags_rdkit.json
 
-jeol_config:
-  jeol: Ture
-  smiles_type: smiles                  #smiles的数据类型（类型其实就是json数据库中存储的字段，下同）
-  hsqc_type: ExactHSQC                 #hsqc的数据类型
-  tags_type: tags                      #多重性的类型
-  ID_type: coconut_id                          #分子的ID值
-  wt_type: exactMolWt                  #质量约束的类型
-  data_enhancement_type : smiles_list  #smiles的数据增强存储，只在新的数据存储方式中有
-  data_reat: 0.8                       #数据划分比例
-  have_tags: False                      # Ture or False , 是否使用tags
-  data_enhancement: False              # Ture or False ,是否进行数据增强
-  load_data_type: old                  # 数据加载的方式，new or old, 新的数据加载对数据增强做了处理
-  data_path: /horovod/examples/HSQC/HSQCCODE/HSCG2.0/data/jeol_clean_base_2Dsmiles_split1.json    # jeol_new_data1.json #HSQC_shuffle_tags_rdkit.json
-
 GCN_model: 
   num_layer: 6                       # number of graph conv layers
   emb_dim: 300                          # embedding dimension in graph conv layers
@@ -62,6 +48,9 @@ val_config:
   is_wt: False  #False or Ture , add the molecule weight
   is_m: False
   da: 50
+  MongoDB_IP: mongodb://127.0.0.1:27017
+  MongoDB_USER: root
+  MongoDB_PASSWORD: 123456
 
 model_config:
   smiles_encode_type: GNN
