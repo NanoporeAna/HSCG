@@ -456,7 +456,6 @@ if __name__ == "__main__":
     batch_size = config_yaml["val_config"]['batch_size']
     filename = config_yaml["val_config"]['pre_model']
     have_tags = config_yaml["dataset_config"]["have_tags"]
-    data_enhancement = config_yaml["dataset_config"]["data_enhancement"]
     load_data_type = config_yaml["dataset_config"]["load_data_type"]
     result_save_name = config_yaml["val_config"]["result_save_name"]
     is_wt = config_yaml["val_config"]["is_wt"]
@@ -479,6 +478,7 @@ if __name__ == "__main__":
     db = mongoclient['HSQC_Clean']
     basic_compound = db.Base_Compound_Clean
     coco_table = db.Coconut_Compound_Clean
+    # 你自己数据集
     jeol_table = db.Jeol_Compound_Clean_Split
     chem_table = db.ChemOnt
     temp_cur = db.TempDB_Clean
@@ -494,25 +494,9 @@ if __name__ == "__main__":
     ref = get_reference_data(coco_data=coco_data, jeol_data=jeol_data, basic_compound_data=basic_compound_data,
                              chemicalClass=chemicalClass, select='Nature')
     JeolA = get_test_data(ref_tabel=jeol_table, chemicalClass=chemicalClass, select='JeolA')
-    # chinese_med = get_test_data(ref_tabel=jeol_table, chemicalClass=chemicalClass, select='Chinese Traditional Medicine')
-    JeolB = get_test_data(ref_tabel=jeol_table, chemicalClass=chemicalClass, select='JeolB')
-    # JeolC = get_test_data(ref_tabel=jeol_table, select='JeolC')
-    # CoconutB = get_test_data(ref_tabel=coco_table, select='Coconut_val')
-    # dataset_chinese_med = evel_smiles_cnmr_dataset_new(chinese_med, have_tags, hsqc_mode='mode1')
-    # chinese_dataloader = DataLoader(dataset_chinese_med, batch_size=batch_size, num_workers=2)
     datasetA = evel_smiles_cnmr_dataset_new(JeolA, have_tags, hsqc_mode='mode1')
     JeolA_dataloader = DataLoader(datasetA, batch_size=batch_size, num_workers=2)
-    datasetB = evel_smiles_cnmr_dataset_new(JeolB, have_tags, hsqc_mode='mode1')
-    JeolB_dataloader = DataLoader(datasetB, batch_size=batch_size, num_workers=2)
-    # datasetC = evel_smiles_cnmr_dataset_new(JeolC, have_tags, hsqc_mode='mode1')
-    # JeolC_dataloader = DataLoader(datasetC, batch_size=batch_size, num_workers=2)
-    # datasetD = evel_smiles_cnmr_dataset_new(CoconutB, have_tags, hsqc_mode='mode1')
-    # CoconutB_dataloader = DataLoader(datasetD, batch_size=batch_size, num_workers=2)
-    # print("加载测试数据Coconut B 长度：", CoconutB.shape)
-    # print("加载JEOL数据中测中药相关数据 大小：", chinese_med.shape)
     print("加载测试数据JeolA 长度：", JeolA.shape)
-    print("加载测试数据JeolB 长度：", JeolB.shape)
-    # print("加载测试数据JeolC 长度：", JeolC.shape)
 
     # 构建参考库数据
     data_pd = ref.copy()
@@ -559,105 +543,13 @@ if __name__ == "__main__":
     store_data_time = time.time()
     print("创建数据库，存入数据使用的时间：", store_data_time - load_smiles_feater_time)
     print("开始检测")
-    # init_logger("result_with_mm_wt.log", f'特别说明：修改质量约束，这次采用rdkit计算的精准质量作为约束条件，而不是上面实际实验测量的质量')
-    # —————————————————————————————————
-    # 处理Jeol C数据
-    # JeolCtop1, JeolCtop5, JeolCtop10 = detection(JeolC_dataloader, model, False, False, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx05', 'JeolC')
-    # print("未加约束 JeolC:", JeolCtop1, JeolCtop5, JeolCtop10)
-
-    # init_logger("result_with_mm_wt.log", f'未加约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-    # 处理JeolB数据
-    JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, False, False, False, temp_cur, result_cur,
-                                                 da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-    print("未加约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-    # init_logger("result_with_mm_wt.log", f'未加约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-    # print("非活泼H JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-    # init_logger("result_with_mm_wt.log", f'非活泼H JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-    #
-    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, True, is_m, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-    # print("质量约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-    # init_logger("result_with_mm_wt.log", f'质量约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-    #
-    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, False, True, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-    # print("多重性约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-    # init_logger("result_with_mm_wt.log", f'多重性约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-    # JeolBtop1, JeolBtop5, JeolBtop10 = detection(JeolB_dataloader, model, True, True, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx04', 'JeolB')
-    # print("质量+多重性约束 JeolB:", JeolBtop1, JeolBtop5, JeolBtop10)
-    # init_logger("result_with_mm_wt.log", f'质量+多重性约束 JeolB:{JeolBtop1}, {JeolBtop5}, {JeolBtop10}')
-    # —————————————————————————————————
-    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(chinese_dataloader, model, False, False, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'Jeol')
-    # print("未加约束 中药测试数据结果:", JeolAtop1, JeolAtop5, JeolAtop10)
 
     JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, False, False, False, temp_cur, result_cur,
                                                  da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
     print("未加约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-    # init_logger("result_with_mm_wt.log", f'未加约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-    # print("非活泼H JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-    # init_logger("result_with_mm_wt.log", f'非活泼H JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-    #
-    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, True, is_m, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-    # print("质量约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-    # init_logger("result_with_mm_wt.log", f'质量约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-    #
-    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, False, True, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-    # print("多重性约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-    # init_logger("result_with_mm_wt.log", f'多重性约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-    # JeolAtop1, JeolAtop5, JeolAtop10 = detection(JeolA_dataloader, model, True, True, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx03', 'JeolA')
-    # print("质量+多重性约束 JeolA:", JeolAtop1, JeolAtop5, JeolAtop10)
-    # init_logger("result_with_mm_wt.log", f'质量+多重性约束 JeolA:{JeolAtop1}, {JeolAtop5}, {JeolAtop10}')
-    # —————————————————————————————————
-    # 处理COCONUT验证集
-    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, is_wt, is_m, True, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-    # print("非活泼H CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-    # init_logger("result_with_mm_wt.log", f'非活泼H CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
-    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, False, is_m, False, temp_cur,
-    #                                                       result_cur,
-    #                                                       da, device, all_smiles_features, all_ID, 'xx02',
-    #                                                       'CoconutB')
-    # print("未加约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, True, is_m, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-    # print("质量约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-    # init_logger("result_with_mm_wt.log", f'质量约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
-    #
-    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, False, True, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-    # print("多重性约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-    # init_logger("result_with_mm_wt.log", f'多重性约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
-    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, True, True, False, temp_cur, result_cur,
-    #                                              da, device, all_smiles_features, all_ID, 'xx02', 'CoconutB')
-    # print("质量+多重性约束 CoconutB:", CoconutBtop1, CoconutBtop5, CoconutBtop10)
-    # init_logger("result_with_mm_wt.log", f'质量+多重性约束 CoconutB:{CoconutBtop1}, {CoconutBtop5}, {CoconutBtop10}')
 
     detection_time = time.time()
     print("开始推理使用的时间：", detection_time-store_data_time)
-    # local_epoch = checkpoint['epoch']
-    # writer.add_scalars('Jeol/Top1', {'JeolA': JeolAtop1, 'JeolB': JeolBtop1, 'JeolC': JeolCtop1}, epoch)
-    # writer.add_scalars('Jeol/Top5', {'JeolA': JeolAtop5, 'JeolB': JeolBtop5, 'JeolC': JeolCtop5}, epoch)
-    # writer.add_scalars('Jeol/Top10', {'JeolA': JeolAtop10, 'JeolB': JeolBtop10, 'JeolC': JeolCtop10}, epoch)
-
-    # CoconutBtop1, CoconutBtop5, CoconutBtop10 = detection(CoconutB_dataloader, model, is_wt, is_m, temp_cur,
-    #                                                       result_cur, da,
-    #                                                       device,
-    #                                                       all_smiles_features, all_ID, 'xx06', 'CoconutA')
-    # writer.add_scalars('CoconutB', {'top1': CoconutBtop1, 'top5': CoconutBtop5, 'top10': CoconutBtop10}, epoch)
-    # print(CoconutBtop1, CoconutBtop5, CoconutBtop10)
-    end_time = time.time()
-    print("使用的总时间：", end_time-start_time)
     mongoclient.close()
     
 
-    
